@@ -11,23 +11,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 password: {}
             },
             async authorize(credentials) {
-                // Return a mock user for UI Journey Mapping without DB verification
-                const emailStr = (credentials?.email as string) || '';
+                // DEMO MODE: Accept any email/password, assign role based on email keyword
+                // See AUTH_NOTE.md for instructions to restore real auth.
+                const emailStr = ((credentials?.email as string) || 'staff@demo.com').toLowerCase();
 
-                // Dynamic mock role assignment based on the email provided
-                let assignedRole = 'STAFF'; // default 
+                let role = 'STAFF';
+                let name = 'Jane Doe (PSW)';
                 if (emailStr.includes('admin') || emailStr.includes('agency')) {
-                    assignedRole = 'AGENCY_ADMIN';
+                    role = 'AGENCY_ADMIN';
+                    name = 'Admin User';
                 } else if (emailStr.includes('family') || emailStr.includes('client')) {
-                    assignedRole = 'CLIENT_FAMILY';
+                    role = 'CLIENT_FAMILY';
+                    name = 'Family Member';
                 }
 
                 return {
-                    id: 'mock-user-777',
-                    name: 'Test View Persona',
-                    email: emailStr || 'staff@mock.com',
-                    role: assignedRole,
-                    tenantId: 'demo-tenant-001'
+                    id: 'demo-user-001',
+                    name,
+                    email: emailStr,
+                    role,
+                    tenantId: 'demo-tenant-001',
                 } as any;
             },
         }),
