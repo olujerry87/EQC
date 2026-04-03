@@ -97,9 +97,13 @@ a {
 }
 
 .btn-secondary {
-  background: white;
-  color: var(--primary);
+  background: var(--muted-light);
+  color: var(--foreground);
   border: 1px solid var(--border);
+}
+
+.btn-secondary:hover {
+  background: var(--border);
 }
 
 .glass-panel {

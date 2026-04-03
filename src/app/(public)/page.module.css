@@ -7,8 +7,9 @@
 .header {
     padding: 1.5rem 0;
     border-bottom: 1px solid var(--border);
-    background: rgba(255, 255, 255, 0.8);
+    background: var(--glass-bg);
     backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     position: sticky;
     top: 0;
     z-index: 10;
@@ -37,10 +38,12 @@
     font-weight: 500;
     color: var(--foreground);
     transition: color 0.2s;
+    opacity: 0.9;
 }
 
 .navLinks a:hover {
     color: var(--primary);
+    opacity: 1;
 }
 
 .hero {
@@ -69,6 +72,7 @@
 .highlight {
     background: linear-gradient(to right, var(--primary), var(--secondary));
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 
