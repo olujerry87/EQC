@@ -1,0 +1,231 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users            User[]
+  clientProfiles   ClientProfile[]
+  facilityProfiles FacilityProfile[]
+  staffProfiles    StaffProfile[]
+  serviceRequests  ServiceRequest[]
+  staffingRequests StaffingRequest[]
+  visits           Visit[]
+  shifts           Shift[]
+  notes            Note[]
+  auditLogs        AuditLog[]
+}
+
+enum Role {
+  SUPER_ADMIN
+  AGENCY_ADMIN
+  STAFF
+  CLIENT_FAMILY
+}
+
+model User {
+  id           String   @id @default(cuid())
+  tenantId     String? // Nullable for SUPER_ADMIN
+  tenant       Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  email        String   @unique
+  passwordHash String?
+  role         Role     @default(CLIENT_FAMILY)
+  mfaEnabled   Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  clientProfile   ClientProfile?
+  facilityProfile FacilityProfile?
+  staffProfile    StaffProfile?
+  notesCreated    Note[]           @relation("NoteAuthor")
+  auditLogs       AuditLog[]
+}
+
+model ClientProfile {
+  id        String  @id @default(cuid())
+  tenantId  String
+  tenant    Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId    String  @unique
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  firstName String
+  lastName  String
+  phone     String?
+  address   String?
+  needs     String?
+  schedule  String?
+  context   String?
+
+  serviceRequests ServiceRequest[]
+  visits          Visit[]
+}
+
+model FacilityProfile {
+  id            String  @id @default(cuid())
+  tenantId      String
+  tenant        Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId        String  @unique
+  user          User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String
+  type          String?
+  address       String?
+  contactPerson String?
+  phone         String?
+
+  staffingRequests StaffingRequest[]
+}
+
+model StaffProfile {
+  id           String  @id @default(cuid())
+  tenantId     String
+  tenant       Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId       String  @unique
+  user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  firstName    String
+  lastName     String
+  phone        String?
+  roles        String?
+  skills       String?
+  availability String?
+
+  assignedVisits Visit[]
+  assignedShifts Shift[]
+}
+
+model ServiceRequest {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  status    String   @default("PENDING")
+
+  contactName   String
+  contactEmail  String
+  contactPhone  String?
+  needs         String?
+  schedule      String?
+  clientContext String?
+
+  clientProfileId String?
+  clientProfile   ClientProfile? @relation(fields: [clientProfileId], references: [id])
+}
+
+model StaffingRequest {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  status    String   @default("PENDING")
+
+  facilityName String
+  contactName  String
+  contactEmail String
+  contactPhone String?
+  facilityType String?
+  address      String?
+
+  roleNeeded   String
+  shiftDetails String?
+  requirements String?
+  priority     String?
+
+  facilityProfileId String?
+  facilityProfile   FacilityProfile? @relation(fields: [facilityProfileId], references: [id])
+  shifts            Shift[]
+}
+
+model Visit {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  date      DateTime
+  startTime DateTime
+  endTime   DateTime
+  status    String   @default("SCHEDULED")
+
+  // EVV Fields
+  clockInTime  DateTime?
+  clockOutTime DateTime?
+  clockInLat   Float?
+  clockInLng   Float?
+  clockOutLat  Float?
+  clockOutLng  Float?
+
+  staffId String?
+  staff   StaffProfile? @relation(fields: [staffId], references: [id])
+
+  clientProfileId String
+  clientProfile   ClientProfile @relation(fields: [clientProfileId], references: [id])
+
+  notes         Note[]
+  rating        Int?
+  ratingComment String?
+}
+
+model Shift {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  startTime DateTime
+  endTime   DateTime
+  status    String   @default("SCHEDULED")
+
+  // EVV Fields
+  clockInTime  DateTime?
+  clockOutTime DateTime?
+  clockInLat   Float?
+  clockInLng   Float?
+  clockOutLat  Float?
+  clockOutLng  Float?
+
+  staffId String?
+  staff   StaffProfile? @relation(fields: [staffId], references: [id])
+
+  staffingRequestId String
+  staffingRequest   StaffingRequest @relation(fields: [staffingRequestId], references: [id])
+
+  notes         Note[]
+  rating        Int?
+  ratingComment String?
+}
+
+model Note {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  content   String?
+  formData  Json? // Flexible JSON records for dynamic documentation forms
+  createdAt DateTime @default(now())
+
+  authorId String
+  author   User   @relation("NoteAuthor", fields: [authorId], references: [id])
+
+  visitId String?
+  visit   Visit?  @relation(fields: [visitId], references: [id])
+
+  shiftId String?
+  shift   Shift?  @relation(fields: [shiftId], references: [id])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action    String // e.g., "READ_PHI", "UPDATE_CLIENT_RECORD"
+  entity    String // e.g., "ClientProfile", "Note"
+  entityId  String
+  metadata  Json? // e.g., changed fields, IP address, user-agent
+  createdAt DateTime @default(now())
+}
