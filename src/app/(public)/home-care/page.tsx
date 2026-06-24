@@ -5,10 +5,9 @@ import Link from 'next/link'
 import styles from './home-care.module.css'
 
 const NEEDS_OPTIONS = [
-    'Companionship', 'Morning Assistance', 'Evening Assistance',
-    'Toileting', 'Bathing/Grooming', 'Meal Prep',
-    'Light Housekeeping', 'Errands', 'Mobility Assistance',
-    'Exercise', 'Medication Reminders', 'Respite Care'
+    'Companionship', 'Meal Prep', 'Light Housekeeping', 
+    'Errands', 'General Assistance', 'Transportation',
+    'Organizing', 'Pet Care'
 ]
 
 type FormData = {
@@ -21,15 +20,11 @@ type FormData = {
         frequency: 'one-time' | 'ongoing'
     }
     client: {
-        ageRange: string
-        livingSituation: string
-        mobilityObj: string // "low", "medium", "high"
-        cognitiveObj: string // "yes", "no"
-        discharge: string // "yes", "no"
         address: string
         postalCode: string
         contactName: string
         contactEmail: string
+        legalAgreement: boolean
     }
 }
 
@@ -45,22 +40,22 @@ export default function HomeCarePage() {
             frequency: 'ongoing'
         },
         client: {
-            ageRange: '',
-            livingSituation: '',
-            mobilityObj: 'low',
-            cognitiveObj: 'no',
-            discharge: 'no',
             address: '',
             postalCode: '',
             contactName: '',
-            contactEmail: ''
+            contactEmail: '',
+            legalAgreement: false
         }
     })
 
     const [submitted, setSubmitted] = useState(false)
+    const [error, setError] = useState('')
 
     const handleNext = () => setStep(step + 1)
-    const handleBack = () => setStep(step - 1)
+    const handleBack = () => {
+        setStep(step - 1)
+        setError('')
+    }
 
     const updateFormData = (section: keyof FormData, field: string, value: any) => {
         setFormData(prev => ({
@@ -94,8 +89,14 @@ export default function HomeCarePage() {
     }
 
     const handleSubmit = async () => {
+        if (!formData.client.legalAgreement) {
+            setError('You must agree to the data policy before submitting.')
+            return
+        }
+        
+        setError('')
         // TODO: Connect to Server Action
-        console.log('Submitting:', formData)
+        console.log('Submitting Shift Request:', formData)
         setSubmitted(true)
     }
 
@@ -104,10 +105,10 @@ export default function HomeCarePage() {
             <div className={styles.container}>
                 <div className={styles.card} style={{ textAlign: 'center' }}>
                     <h1 className={styles.title}>Thank You!</h1>
-                    <p className={styles.subtitle}>Your care plan request has been received.</p>
+                    <p className={styles.subtitle}>Your shift request has been posted.</p>
                     <p style={{ margin: '2rem 0' }}>
                         We have sent a confirmation to {formData.client.contactEmail}.<br />
-                        One of our care coordinators will reach out shortly.
+                        Caregivers can now review and claim your request.
                     </p>
                     <Link href="/" className="btn btn-primary">Return Home</Link>
                 </div>
@@ -119,7 +120,7 @@ export default function HomeCarePage() {
         <div className={styles.container}>
             <div className={styles.card}>
                 <div className={styles.header}>
-                    <h1 className={styles.title}>Build My Care Plan</h1>
+                    <h1 className={styles.title}>Post a Home Shift</h1>
                     <p className={styles.subtitle}>Step {step} of 4</p>
                 </div>
 
@@ -136,7 +137,10 @@ export default function HomeCarePage() {
 
                 {step === 1 && (
                     <div key={1} className="animate-fade-in">
-                        <h2 style={{ marginBottom: '1.5rem' }}>Select Care Needs</h2>
+                        <h2 style={{ marginBottom: '1.5rem' }}>Select General Duties</h2>
+                        <p style={{ color: 'var(--muted)', fontSize: '0.875rem', marginBottom: '1rem' }}>
+                            Please select the logistical and household duties required. <strong>Do not include clinical care needs.</strong>
+                        </p>
                         <div className={styles.checkboxGroup}>
                             {NEEDS_OPTIONS.map(need => (
                                 <label key={need} className={styles.checkboxLabel}>
@@ -155,7 +159,7 @@ export default function HomeCarePage() {
 
                 {step === 2 && (
                     <div key={2} className="animate-fade-in">
-                        <h2 style={{ marginBottom: '1.5rem' }}>Schedule Preferences</h2>
+                        <h2 style={{ marginBottom: '1.5rem' }}>Schedule Requirements</h2>
 
                         <div className={styles.formGroup}>
                             <label className={styles.label}>Frequency</label>
@@ -164,8 +168,8 @@ export default function HomeCarePage() {
                                 value={formData.schedule.frequency}
                                 onChange={(e) => updateFormData('schedule', 'frequency', e.target.value)}
                             >
-                                <option value="ongoing">Ongoing</option>
-                                <option value="one-time">One-time</option>
+                                <option value="ongoing">Ongoing Shifts</option>
+                                <option value="one-time">One-time Shift</option>
                             </select>
                         </div>
 
@@ -221,14 +225,14 @@ export default function HomeCarePage() {
 
                 {step === 3 && (
                     <div key={3} className="animate-fade-in">
-                        <h2 style={{ marginBottom: '1.5rem' }}>Client Information</h2>
+                        <h2 style={{ marginBottom: '1.5rem' }}>Location & Contact</h2>
 
                         <div className={styles.formGroup}>
                             <label className={styles.label}>Contact Name</label>
                             <input
                                 type="text"
                                 className={styles.input}
-                                placeholder="Your Name (or Client Name)"
+                                placeholder="Your Name"
                                 value={formData.client.contactName}
                                 onChange={(e) => updateFormData('client', 'contactName', e.target.value)}
                             />
@@ -245,42 +249,24 @@ export default function HomeCarePage() {
                             />
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                            <div className={styles.formGroup}>
-                                <label className={styles.label}>Age Range</label>
-                                <select
-                                    className={styles.select}
-                                    value={formData.client.ageRange}
-                                    onChange={(e) => updateFormData('client', 'ageRange', e.target.value)}
-                                >
-                                    <option value="">Select...</option>
-                                    <option value="under-65">Under 65</option>
-                                    <option value="65-75">65-75</option>
-                                    <option value="75-85">75-85</option>
-                                    <option value="over-85">Over 85</option>
-                                </select>
-                            </div>
-                            <div className={styles.formGroup}>
-                                <label className={styles.label}>Mobility Level</label>
-                                <select
-                                    className={styles.select}
-                                    value={formData.client.mobilityObj}
-                                    onChange={(e) => updateFormData('client', 'mobilityObj', e.target.value)}
-                                >
-                                    <option value="low">Low Support (Independent)</option>
-                                    <option value="medium">Medium Support (Walker/Cane)</option>
-                                    <option value="high">High Support (Wheelchair/Bedbound)</option>
-                                </select>
-                            </div>
-                        </div>
-
                         <div className={styles.formGroup}>
-                            <label className={styles.label}>Address</label>
+                            <label className={styles.label}>Shift Location Address</label>
                             <textarea
                                 className={styles.textarea}
                                 rows={2}
                                 value={formData.client.address}
                                 onChange={(e) => updateFormData('client', 'address', e.target.value)}
+                            />
+                        </div>
+                        
+                        <div className={styles.formGroup}>
+                            <label className={styles.label}>Postal / Zip Code</label>
+                            <input
+                                type="text"
+                                className={styles.input}
+                                placeholder="A1A 1A1"
+                                value={formData.client.postalCode}
+                                onChange={(e) => updateFormData('client', 'postalCode', e.target.value)}
                             />
                         </div>
                     </div>
@@ -291,7 +277,7 @@ export default function HomeCarePage() {
                         <h2 style={{ marginBottom: '1.5rem' }}>Review Summary</h2>
 
                         <div className={styles.summary}>
-                            <h3 style={{ borderBottom: '1px solid #ddd', paddingBottom: '0.5rem' }}>Needs</h3>
+                            <h3 style={{ borderBottom: '1px solid #ddd', paddingBottom: '0.5rem' }}>General Duties</h3>
                             <p>{formData.needs.join(', ') || 'None selected'}</p>
                         </div>
 
@@ -306,20 +292,26 @@ export default function HomeCarePage() {
                         </div>
 
                         <div className={styles.summary}>
-                            <h3 style={{ borderBottom: '1px solid #ddd', paddingBottom: '0.5rem' }}>Contact</h3>
+                            <h3 style={{ borderBottom: '1px solid #ddd', paddingBottom: '0.5rem' }}>Logistics</h3>
                             <ul className={styles.summaryList}>
-                                <li><strong>Name:</strong> {formData.client.contactName}</li>
-                                <li><strong>Email:</strong> {formData.client.contactEmail}</li>
-                                <li><strong>Location:</strong> {formData.client.address}</li>
+                                <li><strong>Contact:</strong> {formData.client.contactName} ({formData.client.contactEmail})</li>
+                                <li><strong>Location:</strong> {formData.client.address}, {formData.client.postalCode}</li>
                             </ul>
                         </div>
 
-                        <div className={styles.total}>
-                            Estimated Range: $150 - $200 / week
-                            <div style={{ fontSize: '0.875rem', fontWeight: 'normal', color: 'var(--muted)' }}>
-                                * Final price subject to assessment
-                            </div>
+                        <div className={styles.formGroup} style={{ marginTop: '2rem', padding: '1rem', background: 'rgba(239, 68, 68, 0.05)', borderRadius: '0.5rem', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                            <label className={styles.checkboxLabel} style={{ fontWeight: 600, color: 'var(--foreground)' }}>
+                                <input
+                                    type="checkbox"
+                                    className={styles.checkboxInput}
+                                    checked={formData.client.legalAgreement}
+                                    onChange={(e) => updateFormData('client', 'legalAgreement', e.target.checked)}
+                                />
+                                I agree never to input patient medical history or personal health information into this platform.
+                            </label>
+                            {error && <p style={{ color: '#ef4444', fontSize: '0.875rem', marginTop: '0.5rem', fontWeight: 500 }}>{error}</p>}
                         </div>
+
                     </div>
                 )}
 
@@ -336,7 +328,7 @@ export default function HomeCarePage() {
                         </button>
                     ) : (
                         <button className="btn btn-primary" onClick={handleSubmit}>
-                            Submit Request
+                            Post Shift Request
                         </button>
                     )}
                 </div>

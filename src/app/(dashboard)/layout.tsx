@@ -4,9 +4,26 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 const navItems = [
-    { section: 'Agency Admin', links: [{ href: '/agency/scheduling', label: 'Dynamic Scheduling' }] },
-    { section: 'Field Staff', links: [{ href: '/staff/evv', label: 'EVV Clock-In' }, { href: '/staff/forms', label: 'Digital Docs (Offline)' }] },
-    { section: 'Client & Family', links: [{ href: '/family/portal', label: 'Family Portal' }] },
+    {
+        section: 'Agency Admin',
+        links: [
+            { href: '/agency/scheduling', label: '🗓 Scheduling Marketplace' },
+            { href: '/agency/financials',  label: '💳 Financials & Payroll' },
+        ],
+    },
+    {
+        section: 'Field Staff',
+        links: [
+            { href: '/staff/evv',   label: '⏱ EVV Clock-In' },
+            { href: '/staff/forms', label: '📋 Shift Logistics & Expenses' },
+        ],
+    },
+    {
+        section: 'Client & Family',
+        links: [
+            { href: '/family/portal', label: '👨‍👩‍👧 Family Portal' },
+        ],
+    },
 ];
 
 function SidebarContent({ pathname, onNav }: { pathname: string; onNav?: () => void }) {

@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -21,15 +21,11 @@ model Tenant {
   staffingRequests StaffingRequest[]
   visits           Visit[]
   shifts           Shift[]
-  notes            Note[]
   auditLogs        AuditLog[]
-}
-
-enum Role {
-  SUPER_ADMIN
-  AGENCY_ADMIN
-  STAFF
-  CLIENT_FAMILY
+  alerts           Alert[]
+  invoices         Invoice[]
+  expenses         Expense[]
+  payrollEntries   PayrollEntry[]
 }
 
 model User {
@@ -38,7 +34,7 @@ model User {
   tenant       Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   email        String   @unique
   passwordHash String?
-  role         Role     @default(CLIENT_FAMILY)
+  role         String   @default("CLIENT_FAMILY")
   mfaEnabled   Boolean  @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -46,7 +42,6 @@ model User {
   clientProfile   ClientProfile?
   facilityProfile FacilityProfile?
   staffProfile    StaffProfile?
-  notesCreated    Note[]           @relation("NoteAuthor")
   auditLogs       AuditLog[]
 }
 
@@ -60,9 +55,6 @@ model ClientProfile {
   lastName  String
   phone     String?
   address   String?
-  needs     String?
-  schedule  String?
-  context   String?
 
   serviceRequests ServiceRequest[]
   visits          Visit[]
@@ -98,6 +90,9 @@ model StaffProfile {
 
   assignedVisits Visit[]
   assignedShifts Shift[]
+  claimedShifts  Shift[]        @relation("ShiftClaimant")
+  expenses       Expense[]
+  payrollEntries PayrollEntry[]
 }
 
 model ServiceRequest {
@@ -111,9 +106,7 @@ model ServiceRequest {
   contactName   String
   contactEmail  String
   contactPhone  String?
-  needs         String?
-  schedule      String?
-  clientContext String?
+  schedule      String? // Kept for scheduling
 
   clientProfileId String?
   clientProfile   ClientProfile? @relation(fields: [clientProfileId], references: [id])
@@ -167,9 +160,9 @@ model Visit {
   clientProfileId String
   clientProfile   ClientProfile @relation(fields: [clientProfileId], references: [id])
 
-  notes         Note[]
   rating        Int?
   ratingComment String?
+  expenses      Expense[]
 }
 
 model Shift {
@@ -179,6 +172,12 @@ model Shift {
   startTime DateTime
   endTime   DateTime
   status    String   @default("SCHEDULED")
+
+  // Marketplace fields
+  isPublic     Boolean  @default(false)
+  claimedById  String?
+  claimedBy    StaffProfile? @relation("ShiftClaimant", fields: [claimedById], references: [id])
+  roleRequired String?
 
   // EVV Fields
   clockInTime  DateTime?
@@ -194,27 +193,74 @@ model Shift {
   staffingRequestId String
   staffingRequest   StaffingRequest @relation(fields: [staffingRequestId], references: [id])
 
-  notes         Note[]
   rating        Int?
   ratingComment String?
+  expenses      Expense[]
 }
 
-model Note {
-  id        String   @id @default(cuid())
-  tenantId  String
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  content   String?
-  formData  Json? // Flexible JSON records for dynamic documentation forms
-  createdAt DateTime @default(now())
+model Alert {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  type        String   // e.g., "MISSED_SHIFT", "TARDY", "GEOFENCE_VIOLATION"
+  message     String
+  isResolved  Boolean  @default(false)
+  createdAt   DateTime @default(now())
 
-  authorId String
-  author   User   @relation("NoteAuthor", fields: [authorId], references: [id])
+  shiftId     String?
+  visitId     String?
+}
 
-  visitId String?
-  visit   Visit?  @relation(fields: [visitId], references: [id])
+model Invoice {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  amount      Float
+  taxAmount   Float    @default(0.0)
+  totalAmount Float
+  status      String   @default("DRAFT") // DRAFT, SENT, PAID
+  createdAt   DateTime @default(now())
+  dueDate     DateTime?
 
-  shiftId String?
-  shift   Shift?  @relation(fields: [shiftId], references: [id])
+  shiftId     String?
+  visitId     String?
+  clientId    String?
+  facilityId  String?
+}
+
+model Expense {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  amount      Float
+  category    String   // e.g., "MILEAGE", "SUPPLIES"
+  description String?
+  status      String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  createdAt   DateTime @default(now())
+
+  staffId     String
+  staff       StaffProfile @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  shiftId     String?
+  shift       Shift?       @relation(fields: [shiftId], references: [id])
+  visitId     String?
+  visit       Visit?       @relation(fields: [visitId], references: [id])
+}
+
+model PayrollEntry {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  amount      Float
+  taxAmount   Float    @default(0.0)
+  netAmount   Float
+  status      String   @default("PENDING") // PENDING, PROCESSED
+  periodStart DateTime
+  periodEnd   DateTime
+  createdAt   DateTime @default(now())
+
+  staffId     String
+  staff       StaffProfile @relation(fields: [staffId], references: [id], onDelete: Cascade)
 }
 
 model AuditLog {
@@ -223,9 +269,9 @@ model AuditLog {
   tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  action    String // e.g., "READ_PHI", "UPDATE_CLIENT_RECORD"
-  entity    String // e.g., "ClientProfile", "Note"
+  action    String // e.g., "PROCESS_PAYROLL", "APPROVE_EXPENSE"
+  entity    String // e.g., "Invoice", "Expense"
   entityId  String
-  metadata  Json? // e.g., changed fields, IP address, user-agent
+  metadata  String? // e.g., changed fields, IP address, user-agent
   createdAt DateTime @default(now())
 }

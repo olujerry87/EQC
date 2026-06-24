@@ -11,6 +11,7 @@ type FormData = {
         address: string
         contactName: string
         contactEmail: string
+        legalAgreement: boolean
     }
     role: {
         roleNeeded: string
@@ -38,7 +39,8 @@ export default function StaffingPage() {
             type: 'Assisted Living',
             address: '',
             contactName: '',
-            contactEmail: ''
+            contactEmail: '',
+            legalAgreement: false
         },
         role: {
             roleNeeded: 'PSW',
@@ -59,9 +61,13 @@ export default function StaffingPage() {
     })
 
     const [submitted, setSubmitted] = useState(false)
+    const [error, setError] = useState('')
 
     const handleNext = () => setStep(step + 1)
-    const handleBack = () => setStep(step - 1)
+    const handleBack = () => {
+        setStep(step - 1)
+        setError('')
+    }
 
     const updateFormData = (section: keyof FormData, field: string, value: any) => {
         setFormData(prev => ({
@@ -74,6 +80,12 @@ export default function StaffingPage() {
     }
 
     const handleSubmit = async () => {
+        if (!formData.facility.legalAgreement) {
+            setError('You must agree to the data policy before submitting.')
+            return
+        }
+        
+        setError('')
         // TODO: Connect to Server Action
         console.log('Submitting Staffing Req:', formData)
         setSubmitted(true)
@@ -305,6 +317,19 @@ export default function StaffingPage() {
                                 <li><strong>Shift:</strong> {formData.shifts.startDate} @ {formData.shifts.startTime}-{formData.shifts.endTime}</li>
                                 <li><strong>Staff Count:</strong> {formData.shifts.count}</li>
                             </ul>
+                        </div>
+
+                        <div className={styles.formGroup} style={{ marginTop: '2rem', padding: '1rem', background: 'rgba(239, 68, 68, 0.05)', borderRadius: '0.5rem', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                            <label className={styles.checkboxLabel} style={{ fontWeight: 600, color: 'var(--foreground)' }}>
+                                <input
+                                    type="checkbox"
+                                    className={styles.checkboxInput}
+                                    checked={formData.facility.legalAgreement}
+                                    onChange={(e) => updateFormData('facility', 'legalAgreement', e.target.checked)}
+                                />
+                                I agree never to input patient medical history or personal health information into this platform.
+                            </label>
+                            {error && <p style={{ color: '#ef4444', fontSize: '0.875rem', marginTop: '0.5rem', fontWeight: 500 }}>{error}</p>}
                         </div>
                     </div>
                 )}
